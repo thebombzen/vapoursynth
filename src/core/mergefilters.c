@@ -558,37 +558,6 @@ static const VSFrameRef *VS_CC maskedMergeGetFrame(int n, int activationReason, 
                 } else {
                     if (d->vi->format->sampleType == stInteger) {
                         if (d->vi->format->bytesPerSample == 1) {
-#ifdef VS_TARGET_CPU_X86
-                            for (int y = 0; y < h; y++) {
-                                for (int xiter = 0; xiter < w; xiter += sizeof(__m128i)) {
-                                    __m128i srcreg1 = _mm_load_si128((const __m128i *)(srcp1 + xiter));
-                                    __m128i srcreg2 = _mm_load_si128((const __m128i *)(srcp2 + xiter));
-                                    __m128i maskreg = _mm_load_si128((const __m128i *)(maskp + xiter));
-
-                                    __m128i srcreg1lo = _mm_unpacklo_epi8(srcreg1, _mm_setzero_si128());
-                                    __m128i srcreg2lo = _mm_unpacklo_epi8(srcreg2, _mm_setzero_si128());
-                                    __m128i maskreglo = _mm_unpacklo_epi8(maskreg, _mm_setzero_si128());
-                                    __m128i srcreg1hi = _mm_unpackhi_epi8(srcreg1, _mm_setzero_si128());
-                                    __m128i srcreg2hi = _mm_unpackhi_epi8(srcreg2, _mm_setzero_si128());
-                                    __m128i maskreghi = _mm_unpackhi_epi8(maskreg, _mm_setzero_si128());
-
-                                    __m128i tmp1lo = _mm_slli_epi16(_mm_sub_epi16(srcreg2lo, srcreg1lo), 4);
-                                    __m128i tmp1hi = _mm_slli_epi16(_mm_sub_epi16(srcreg2hi, srcreg1hi), 4);
-
-                                    __m128i masktmplo = _mm_slli_epi16(_mm_add_epi16(maskreglo, _mm_srli_epi16(_mm_cmpgt_epi16(maskreglo, _mm_set1_epi16(2)), 15)), 4);
-                                    __m128i masktmphi = _mm_slli_epi16(_mm_add_epi16(maskreghi, _mm_srli_epi16(_mm_cmpgt_epi16(maskreghi, _mm_set1_epi16(2)), 15)), 4);
-
-                                    __m128i tmp2lo = _mm_add_epi16(_mm_add_epi16(_mm_mulhi_epi16(tmp1lo, masktmplo), _mm_slli_epi16(_mm_mullo_epi16(tmp1lo, masktmplo), 15)), srcreg1lo);
-                                    __m128i tmp2hi = _mm_add_epi16(_mm_add_epi16(_mm_mulhi_epi16(tmp1hi, masktmphi), _mm_slli_epi16(_mm_mullo_epi16(tmp1hi, masktmphi), 15)), srcreg1hi);
-
-                                    __m128i tmpdst = _mm_packus_epi16(tmp2lo, tmp2hi);
-                                    _mm_store_si128((__m128i *)(dstp + xiter), tmpdst);
-                                }
-                                srcp1 += stride;
-                                srcp2 += stride;
-                                dstp += stride;
-                            }
-#else
                             for (int y = 0; y < h; y++) {
                                 for (int x = 0; x < w; x++)
                                     dstp[x] = srcp1[x] + (((srcp2[x] - srcp1[x]) * (((maskp[x] >> 1) & 1) + maskp[x]) + 128) >> 8);
@@ -597,7 +566,6 @@ static const VSFrameRef *VS_CC maskedMergeGetFrame(int n, int activationReason, 
                                 maskp += stride;
                                 dstp += stride;
                             }
-#endif
                         } else if (d->vi->format->bytesPerSample == 2) {
                             const unsigned shift = d->vi->format->bitsPerSample;
                             const int round = 1 << (shift - 1);
